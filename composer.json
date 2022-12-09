@@ -1,0 +1,13 @@
+{
+    "name": "grafinet/xades-tools",
+    "description": "Sign files and verify signatures using XAdES",
+    "type": "library",
+    "require": {
+        "php": "^8.1",
+        "ext-dom": "*",
+        "ext-openssl": "*",
+        "krowinski/bcmath-extended": "^6.0",
+        "symfony/uid": "^6.2"
+    },
+    "license": "MIT"
+}
