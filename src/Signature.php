@@ -99,10 +99,13 @@ class Signature
         $digest1 = base64_encode(Tools::sha256($content));
 
         $dom = new DOMDocument('1.0', 'UTF-8');
+        $signatures = $dom->createElement('Signatures');
 
         $signature = $dom->createElementNS(Tools::NAMESPACE_DS, 'ds:Signature');
+        $signatures->appendChild($signature);
+
         $signature->setAttribute('Id', $ids['signature'] = Tools::guid());
-        $dom->appendChild($signature);
+        $dom->appendChild($signatures);
 
         $signedInfo = $dom->createElementNS(Tools::NAMESPACE_DS, 'ds:SignedInfo');
         $signedInfo->setAttribute('Id', Tools::guid());
@@ -136,7 +139,8 @@ class Signature
                 trim(
                     chunk_split(
                         base64_encode($content),
-                        64
+                        64,
+                        "\n"
                     )
                 )
             );
@@ -149,6 +153,7 @@ class Signature
 
             $reference1->setAttribute('URI', "#" . $ids['embedded_object']);
         } else {
+            $objectEmbed = null;
             $reference1->setAttribute('URI', $this->fileName);
         }
 
@@ -169,10 +174,18 @@ class Signature
 
         $signatureValue = $dom->createElementNS(Tools::NAMESPACE_DS, 'ds:SignatureValue');
         $signatureValue->setAttribute('Id', Tools::guid());
-        $signature->appendChild($signatureValue);
+        if ($objectEmbed) {
+            $signature->insertBefore($signatureValue, $objectEmbed);
+        } else {
+            $signature->appendChild($signatureValue);
+        }
 
         $keyInfo = $dom->createElementNS(Tools::NAMESPACE_DS, 'ds:KeyInfo');
-        $signature->appendChild($keyInfo);
+        if ($objectEmbed) {
+            $signature->insertBefore($keyInfo, $objectEmbed);
+        } else {
+            $signature->appendChild($keyInfo);
+        }
 
         $x509data = $dom->createElementNS(Tools::NAMESPACE_DS, 'ds:X509Data');
         $keyInfo->appendChild($x509data);
@@ -185,7 +198,11 @@ class Signature
         );
 
         $object = $dom->createElementNS(Tools::NAMESPACE_DS, 'ds:Object');
-        $signature->appendChild($object);
+        if ($objectEmbed) {
+            $signature->insertBefore($object, $objectEmbed);
+        } else {
+            $signature->appendChild($object);
+        }
 
         $qualifyingProperties = $dom->createElementNS(
             Tools::NAMESPACE_XADES, 'xades:QualifyingProperties'
@@ -304,13 +321,9 @@ class Signature
 
         $signedPropertiesToDigest = $signedProperties->C14N();
 
-// echo "\n" . $signedPropertiesToDigest . "\n";
-
         $xmlDigest = base64_encode(Tools::sha256($signedPropertiesToDigest));
 
         $reference2->appendChild($dom->createElementNS(Tools::NAMESPACE_DS, 'DigestValue', $xmlDigest));
-
-// echo "XML DIGEST:" . $xmlDigest . "\n";
 
         $actualDigest = '';
         openssl_sign(
